@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -10,11 +13,30 @@ const Workouts = () => {
     { id: 2, name: "Swimming", duration: "45 minutes" },
   ]);
 
-  const [newWorkout, setNewWorkout] = useState({ name: "", duration: "" });
+  const [editingWorkout, setEditingWorkout] = useState(null);
 
-  const addWorkout = () => {
-    setWorkouts([...workouts, { ...newWorkout, id: workouts.length + 1 }]);
-    setNewWorkout({ name: "", duration: "" });
+  const workoutSchema = z.object({
+    name: z.string().min(1, "Workout name is required"),
+    duration: z.string().min(1, "Duration is required"),
+  });
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+    resolver: zodResolver(workoutSchema),
+  });
+
+  const addWorkout = (data) => {
+    setWorkouts([...workouts, { ...data, id: workouts.length + 1 }]);
+    reset();
+  };
+
+  const editWorkout = (data) => {
+    setWorkouts(workouts.map(workout => workout.id === editingWorkout.id ? { ...data, id: editingWorkout.id } : workout));
+    setEditingWorkout(null);
+    reset();
+  };
+
+  const deleteWorkout = (id) => {
+    setWorkouts(workouts.filter(workout => workout.id !== id));
   };
 
   return (
@@ -24,30 +46,38 @@ const Workouts = () => {
           <CardHeader>
             <CardTitle>{workout.name}</CardTitle>
           </CardHeader>
-          <CardContent>{workout.duration}</CardContent>
+          <CardContent>
+            {workout.duration}
+            <div className="flex space-x-2 mt-2">
+              <Button variant="outline" onClick={() => setEditingWorkout(workout)}>Edit</Button>
+              <Button variant="destructive" onClick={() => deleteWorkout(workout.id)}>Delete</Button>
+            </div>
+          </CardContent>
         </Card>
       ))}
       <Dialog>
         <DialogTrigger asChild>
-          <Button>Add Workout</Button>
+          <Button>{editingWorkout ? "Edit Workout" : "Add Workout"}</Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add New Workout</DialogTitle>
+            <DialogTitle>{editingWorkout ? "Edit Workout" : "Add New Workout"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <form onSubmit={handleSubmit(editingWorkout ? editWorkout : addWorkout)} className="space-y-4">
             <Input
               placeholder="Workout Name"
-              value={newWorkout.name}
-              onChange={(e) => setNewWorkout({ ...newWorkout, name: e.target.value })}
+              defaultValue={editingWorkout?.name}
+              {...register("name")}
             />
+            {errors.name && <p className="text-red-500">{errors.name.message}</p>}
             <Input
               placeholder="Duration"
-              value={newWorkout.duration}
-              onChange={(e) => setNewWorkout({ ...newWorkout, duration: e.target.value })}
+              defaultValue={editingWorkout?.duration}
+              {...register("duration")}
             />
-            <Button onClick={addWorkout}>Add</Button>
-          </div>
+            {errors.duration && <p className="text-red-500">{errors.duration.message}</p>}
+            <Button type="submit">{editingWorkout ? "Save Changes" : "Add"}</Button>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
